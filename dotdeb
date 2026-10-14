@@ -1,0 +1,65 @@
+#!/bin/bash
+
+command=$1
+shift
+
+type=""
+arg1=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --tar) type="tar"; shift ;;
+        --deb) type="deb"; shift ;;
+        -*)    echo "Unknown option: $1"; exit 1 ;;
+        *)     arg1=$1; shift ;;
+    esac
+done
+
+if [[ -z "$command" || -z "$arg1" ]]; then
+    echo "Usage: $0 <command> [--tar|--deb] <file>"
+    exit 1
+fi
+
+filepath="$(find ~/ -maxdepth 2 -name "${arg1}*" -type f -print -quit 2>/dev/null)"
+filename=${filepath##*/}
+
+if [[ -z "$filepath" ]]; then
+    echo "Failed: file not found"
+    exit 1
+fi
+
+# Si no pasaron flag, detectar por el final del nombre
+if [[ -z "$type" ]]; then
+    case "$filename" in
+        *.tar|*.tar.*) type="tar" ;;
+        *.deb)         type="deb" ;;
+        *)             echo "Cannot detect type of: $filename"; exit 1 ;;
+    esac
+fi
+
+case "$command" in
+    install)
+        echo "File Name: $filename"
+        echo "File exist on: $filepath"
+        echo "Type: $type"
+
+        read -r -p "Continue install: [Y/n] " response
+
+        case "${response,,}" in
+            ""|y|yes)
+                case "$type" in
+                    tar) source "$(dirname "${BASH_SOURCE[0]}")/core/tar.sh" "$filepath" ;;
+                    deb) source "$(dirname "${BASH_SOURCE[0]}")/core/deb.sh" "$filepath" ;;
+                esac
+                ;;
+            *)
+                echo "Aborting: The installation was canceled"
+                exit 0
+                ;;
+        esac
+        ;;
+    *)
+        echo "Unknown command: $command"
+        exit 1
+        ;;
+esac
